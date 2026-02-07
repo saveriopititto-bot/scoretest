@@ -4,3 +4,5 @@ numpy
 requests
 scipy
 supabase
+python-dotenv
+gunicorn
