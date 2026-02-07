@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: score-flet
+    env: python
+    region: frankfurt  # o oregon, singapore
+    plan: free  # o starter ($7/mese)
+    buildCommand: pip install -r requirements.txt
+    startCommand: flet run main.py --port $PORT --web
+    envVars:
+      - key: FLET_SERVER_PORT
+        value: 8000
+      - key: FLET_FORCE_WEB_SERVER
+        value: true
+      - key: STRAVA_CLIENT_ID
+        sync: false  # Inserito manualmente
+      - key: STRAVA_CLIENT_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
