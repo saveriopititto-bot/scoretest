@@ -1,0 +1,229 @@
+import os
+import toml
+from pathlib import Path
+import streamlit as st
+
+class Config:
+    # --- GLOBAL CONSTANTS ---
+    APP_TITLE = "sCore"
+    APP_ICON = "assets/favicon.png"
+    
+    # --- ALGORITHM PARAMETERS ---
+    ENGINE_VERSION = "4.2"
+    
+    # World Record Benchmark (Elite standard)
+    WR_WKG = 6.4 
+    
+    # Score Component Weights (Must sum to 1.0)
+    WEIGHT_POWER = 0.5
+    WEIGHT_VOLUME = 0.3
+    WEIGHT_INTENSITY = 0.2
+    
+    # Penalties
+    DECOUPLING_THRESHOLD = 0.05 # 5% drift is normal
+    DECOUPLING_PENALTY_FACTOR = 2.0
+    
+    # Volume Scaling
+    VOLUME_LOG_DIVISOR = 4.5
+    
+    # Rank Thresholds
+    RANK_THRESHOLDS = {
+        "ELITE": 0.35,
+        "PRO": 0.28,
+        "ADVANCED": 0.22,
+        "INTERMEDIATE": 0.15
+    }
+
+    # --- THEME & COLORS ---
+    class Theme:
+        """Centralized Color Palette for UI and Charts"""
+        # Primary Colors (Neon Palette)
+        PRIMARY = "#FF6B6B"      # Red/Coral
+        SECONDARY = "#5CB338"    # Green
+        ACCENT = "#FFC145"       # Yellow
+        DANGER = "#FB4141"       # Red/Warning
+        INFO = "#5C5CFF"         # Blue
+        
+        # Backgrounds
+        BG_DARK = "#111827"
+        BG_LIGHT = "#F9FAFB"
+        
+        # Surfaces
+        SURFACE_LIGHT = "#FFFFFF"
+        SURFACE_DARK = "#1F2937"
+        
+        # Text
+        TEXT_DARK = "#f3f4f6"
+        TEXT_LIGHT = "#1f2937"
+        
+        # Score Quality Colors (Matched to new Palette)
+        SCORE_EPIC = "#5CB338"      # Green
+        SCORE_GREAT = "#5C5CFF"     # Blue (changed from yellow to match HTML 'EF' or general cool vibe, or keep yellow?) 
+                                    # Wait, HTML uses Green for Score 81.4 (Great/Epic). 
+                                    # HTML uses Yellow for Drift 0.0%.
+                                    # HTML uses Blue for EF.
+                                    # Let's align with the ring gradients.
+        SCORE_SOLID = "#FFC145"     # Yellow
+        SCORE_WEAK = "#FB4141"      # Red
+        
+        # Legacy mappings
+        SCORE_LEGENDARY = SCORE_EPIC
+        SCORE_WASTED = SCORE_WEAK
+        
+        # Gradients / Special
+        GLASS_BORDER_LIGHT = "rgba(229, 231, 235, 1)" # border-light
+        GLASS_BORDER_DARK = "rgba(55, 65, 81, 1)"     # border-dark
+
+    # --- SCORE THRESHOLDS ---
+    class Thresholds:
+        LEGENDARY = 90
+        EPIC = 80
+        GREAT = 70
+        SOLID = 60
+        OK = 40
+        WEAK = 20
+
+
+
+    # Rank Colors (Hex for SVG/CSS)
+    # Rank Colors (Hex for SVG/CSS)
+    RANK_COLORS = {
+        "ELITE": "#5CB338", # Green
+        "PRO": "#5C5CFF",   # Blue
+        "ADVANCED": "#FFC145", # Yellow
+        "INTERMEDIATE": "#FF6B6B", # Primary/Coral
+        "ROOKIE": "#9CA3AF"  # Gray
+    }
+    
+    # --- UI COMPATIBILITY ---
+    SCORE_COLORS = {
+        "good": Theme.SCORE_EPIC,     # Green
+        "ok": Theme.SCORE_SOLID,      # Yellow
+        "neutral": Theme.SCORE_GREAT, # Blue
+        "bad": Theme.SCORE_WEAK       # Red
+    }
+    
+    # --- DEFAULTS ---
+    DEFAULT_WEIGHT = 70.0
+    DEFAULT_HR_MAX = 185
+    DEFAULT_HR_REST = 50
+    DEFAULT_FTP = 250
+    DEFAULT_AGE = 30
+    
+    # --- SECRETS & KEYS ---
+    @staticmethod
+    def check_secrets():
+        """
+        Validates that all necessary secrets are present (from env or secrets.toml).
+        Returns a list of missing keys.
+        """
+        missing = []
+        
+        # Strava
+        strava_creds = Config.get_strava_creds()
+        if not strava_creds.get("client_id"): missing.append("strava.client_id")
+        if not strava_creds.get("client_secret"): missing.append("strava.client_secret")
+        
+        # Supabase
+        supabase_creds = Config.get_supabase_creds()
+        if not supabase_creds.get("url"): missing.append("supabase.url")
+        if not supabase_creds.get("key"): missing.append("supabase.key")
+        
+        # Gemini (Optional but recommended)
+        if not Config.get_gemini_key(): missing.append("gemini.api_key")
+        
+        return missing
+
+    @staticmethod
+    def get_strava_creds():
+        """Get Strava credentials from env vars or secrets.toml"""
+        # Prova prima da environment variables (Render)
+        client_id = os.getenv("STRAVA_CLIENT_ID")
+        client_secret = os.getenv("STRAVA_CLIENT_SECRET")
+        
+        if client_id and client_secret:
+            return {
+                "client_id": client_id,
+                "client_secret": client_secret
+            }
+        
+        # Fallback su secrets.toml (locale)
+        try:
+            secrets_path = Path(".streamlit/secrets.toml")
+            if secrets_path.exists():
+                secrets = toml.load(secrets_path)
+                return secrets.get("strava", {})
+        except Exception as e:
+            print(f"Error loading secrets: {e}")
+        
+        return {}
+    
+    @staticmethod
+    def get_supabase_creds():
+        """Get Supabase credentials from env vars or secrets.toml"""
+        url = os.getenv("SUPABASE_URL")
+        key = os.getenv("SUPABASE_KEY")
+        
+        if url and key:
+            return {"url": url, "key": key}
+        
+        try:
+            secrets_path = Path(".streamlit/secrets.toml")
+            if secrets_path.exists():
+                secrets = toml.load(secrets_path)
+                return secrets.get("supabase", {})
+        except:
+            pass
+        
+        return {}
+    
+    @staticmethod
+    def get_gemini_key():
+        """Get Gemini API key from env vars or secrets.toml"""
+        api_key = os.getenv("GEMINI_API_KEY")
+        
+        if api_key:
+            return api_key
+        
+        try:
+            secrets_path = Path(".streamlit/secrets.toml")
+            if secrets_path.exists():
+                secrets = toml.load(secrets_path)
+                return secrets.get("gemini", {}).get("api_key")
+        except:
+            pass
+        
+        return None
+
+    # --- LOGGING ---
+    @staticmethod
+    def setup_logging():
+        import logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.StreamHandler()
+            ]
+        )
+        return logging.getLogger("sCore")
+
+    # --- EXTERNAL SERVICES ---
+    OPEN_METEO_URL = "https://archive-api.open-meteo.com/v1/archive"
+    STRAVA_BASE_URL = "https://www.strava.com/api/v3"
+
+    # --- ALGORITHM TUNING ---
+    SCALING_FACTOR = 280.0
+    ELITE_SPEED_M_S = 5.8
+    
+    # Score 4.1 Parameters
+    SCORE_ALPHA = 0.8
+    SCORE_BETA = 3.0
+    SCORE_GAMMA = 2.0
+    SCORE_W_REF = 6.0
+    W_REF = 6.0
+    
+    # --- DEV MODE ---
+    DEV_IDS = {12345678, 59049495} # Saverio's ID added
+
+
